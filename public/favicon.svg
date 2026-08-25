@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Surakshith Suvarna">
+  <circle cx="32" cy="32" r="30" fill="#132826"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#c5e66f" stroke-width="2"/>
+  <text x="32" y="38" fill="#fbfaf6" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" letter-spacing="1" text-anchor="middle">SS</text>
+</svg>
