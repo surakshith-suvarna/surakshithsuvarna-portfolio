@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.surakshithsuvarna.com"),
+  metadataBase: new URL("https://surakshithsuvarna.com"),
   title: "Surakshith Suvarna — Infrastructure & Software Portfolio",
   description: "Senior IT Systems Specialist with 19 years of experience in VMware infrastructure, resilience, automation and production software engineering with Go.",
-  authors: [{ name: "Surakshith Suvarna", url: "https://www.surakshithsuvarna.com" }],
+  authors: [{ name: "Surakshith Suvarna", url: "https://surakshithsuvarna.com" }],
   creator: "Surakshith Suvarna",
   publisher: "Surakshith Suvarna",
   keywords: ["Surakshith Suvarna", "Infrastructure Architect", "VMware", "Golang", "Veeam", "Platform Engineering", "Mangalore"],
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     images: ["/og.png"],
   },
   icons: {
-    icon: [{ url: "/favicon-v2.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon-v2.svg",
+    icon: [{ url: "/favicon-v3.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon-v3.svg",
   },
 };
 

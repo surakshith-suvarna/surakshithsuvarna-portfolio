@@ -1,37 +1,54 @@
 import ContactForm from "./contact-form";
+import BrandMark from "./brand-mark";
 import JsonLd from "./structured-data";
 
-const siteUrl = "https://www.surakshithsuvarna.com";
+const siteUrl = "https://surakshithsuvarna.com";
 
 const Arrow = () => <span aria-hidden="true">↗</span>;
 
 const projects = [
   {
     index: "01",
+    type: "IT operations · Software engineering",
+    title: "Unified IT Operations Dashboard",
+    summary: "Designed, developed and maintained a Go application that brings infrastructure monitoring, identity reports, endpoint protection, VDI and backup status into one place. In production since June 2023, it supports a four-person IT team and replaces manual antivirus checks across approximately 105 desktops with current and historical report exports in seconds.",
+    impact: "Antivirus audit reports exported in seconds, replacing manual checks across approximately 105 desktops.",
+    stack: ["Go", "PostgreSQL", "Go HTML templates", "WebSockets", "PWA"],
+    href: "/case-studies/unified-it-operations-dashboard",
+    datePublished: "2026-09-05T04:11:59Z",
+  },
+  {
+    index: "02",
     type: "AI · Workflow automation",
     title: "3CX Post‑Call Analytics",
     summary: "An AI-assisted post-call system, researched and built in 15 days, that turns recordings into CRM-ready notes and operational insights.",
     impact: "Approximately 250 calls processed each day",
     stack: ["Go", "3CX", "AssemblyAI", "Gemini 2.5 Flash", "MySQL"],
     href: "/case-studies/3cx-post-call-analytics",
+    image: `${siteUrl}/social/3cx-post-call-analytics.png`,
+    datePublished: "2026-08-23T04:06:30Z",
   },
   {
-    index: "02",
+    index: "03",
     type: "Collaboration · Applied AI",
     title: "Microsoft Teams Insights",
     summary: "An on-premises Teams application that converts meeting recordings and transcripts into consistent notes and reusable follow-up context.",
     impact: "Supporting meetings across an 80-person workforce",
     stack: ["Go", "React", "Fluent UI", "RabbitMQ", "SigNoz", "Webhooks"],
     href: "/case-studies/microsoft-teams-insights",
+    image: `${siteUrl}/social/microsoft-teams-insights.png`,
+    datePublished: "2026-08-23T04:06:30Z",
   },
   {
-    index: "03",
+    index: "04",
     type: "Infrastructure · Migration",
     title: "Primary Datacentre Migration",
     summary: "A phased vSphere 7 migration completed during lockdown, balancing production continuity, rollback readiness and cross-team validation.",
     impact: "Around 230 production and VDI VMs, plus DR",
     stack: ["vSphere 7", "vSphere Replication", "VDI", "Disaster Recovery"],
     href: "/case-studies/primary-datacentre-migration",
+    image: `${siteUrl}/social/primary-datacentre-migration-v2.png`,
+    datePublished: "2026-08-23T04:06:30Z",
   },
 ];
 
@@ -68,7 +85,7 @@ export default function Home() {
         name: "Surakshith Suvarna — Infrastructure & Software Portfolio",
         description: "Professional profile and selected production work by Surakshith Suvarna.",
         dateCreated: "2026-08-21T08:10:22Z",
-        dateModified: "2026-08-24T23:28:13Z",
+        dateModified: "2026-09-05T04:11:59Z",
         inLanguage: "en-IN",
         isPartOf: { "@id": `${siteUrl}/#website` },
         mainEntity: { "@id": `${siteUrl}/#person` },
@@ -77,7 +94,8 @@ export default function Home() {
           "@id": `${siteUrl}${project.href}#article`,
           headline: project.title,
           url: `${siteUrl}${project.href}`,
-          datePublished: "2026-08-23T04:06:30Z",
+          ...(project.image ? { image: [project.image] } : {}),
+          datePublished: project.datePublished,
           author: { "@id": `${siteUrl}/#person` },
         })),
       },
@@ -101,7 +119,7 @@ export default function Home() {
       <JsonLd data={profileSchema} />
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Surakshith Suvarna, home"><span className="brand-mark">SS</span><span>Surakshith Suvarna</span></a>
+        <a className="brand" href="#top" aria-label="Surakshith Suvarna, home"><BrandMark /><span>Surakshith Suvarna</span></a>
         <nav aria-label="Primary navigation">
           <a href="#work">Work</a><a href="#expertise">Expertise</a><a href="#experience">Experience</a><a className="nav-cta" href="#contact">Contact</a>
         </nav>
@@ -209,7 +227,7 @@ export default function Home() {
         <div className="contact-meta"><span>Mangalore, Karnataka, India</span><div><a href="https://github.com/surakshith-suvarna" target="_blank" rel="noopener noreferrer">GitHub <Arrow /></a><a href="https://www.linkedin.com/in/surakshith-suvarna-42863961/" target="_blank" rel="noopener noreferrer">LinkedIn <Arrow /></a></div></div>
       </section>
 
-      <footer><a className="brand" href="#top"><span className="brand-mark">SS</span><span>Surakshith Suvarna</span></a><p>Infrastructure · Reliability · Software</p><p>© 2026 Surakshith Suvarna</p></footer>
+      <footer><a className="brand" href="#top" aria-label="Surakshith Suvarna, home"><BrandMark /><span>Surakshith Suvarna</span></a><p>Infrastructure · Reliability · Software</p><p>© 2026 Surakshith Suvarna</p></footer>
     </main>
   );
 }

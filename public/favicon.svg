@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Surakshith Suvarna">
-  <circle cx="32" cy="32" r="30" fill="#132826"/>
-  <circle cx="32" cy="32" r="29" fill="none" stroke="#c5e66f" stroke-width="2"/>
-  <text x="32" y="38" fill="#fbfaf6" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" letter-spacing="1" text-anchor="middle">SS</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" role="img" aria-label="Surakshith Suvarna">
+  <circle cx="18" cy="18" r="17.25" fill="#132826"/>
+  <path d="M7.4 24.8A13 13 0 0 0 28.7 10.1" fill="none" stroke="#c5e66f" stroke-width="1.25" stroke-linecap="round"/>
+  <circle cx="28.7" cy="10.1" r="1.65" fill="#f26b3a"/>
+  <path d="M23.5 10.6c-1.4-1.15-3.25-1.75-5.35-1.75-3.25 0-5.55 1.45-5.55 3.6 0 2.05 1.8 3.05 5.15 3.62l1.5.27c2.95.5 4.45 1.65 4.45 3.85 0 2.85-2.7 4.95-6.5 4.95-2.85 0-5.3-.95-7.25-2.75" fill="none" stroke="#fbfaf6" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

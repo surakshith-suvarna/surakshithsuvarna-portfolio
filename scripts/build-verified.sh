@@ -25,9 +25,9 @@ timeout \
   "${SITES_BUILD_TIMEOUT:-3m}" \
   "${vinext}" build
 
-echo "Running rendered HTML and SEO tests..."
+echo "Running rendering, contact security and recovery tests..."
 timeout \
   --signal=TERM \
   --kill-after="10s" \
   "${SITES_TEST_TIMEOUT:-1m}" \
-  node --test tests/rendered-html.test.mjs
+  node --test tests/*.test.mjs

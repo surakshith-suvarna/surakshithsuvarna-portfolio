@@ -2,6 +2,10 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { getContactConfig, handleContact, type ContactEnv } from "./contact";
+import { withSecurityHeaders } from "./security-headers";
+
+const CANONICAL_HOSTNAME = "surakshithsuvarna.com";
+const WWW_HOSTNAME = "www.surakshithsuvarna.com";
 
 interface Env extends ContactEnv {
   ASSETS: Fetcher;
@@ -26,9 +30,15 @@ interface ExecutionContext {
 // dangerouslyAllowSVG: true in next.config.js and uncomment below:
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
-const worker = {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+async function route(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.hostname.toLowerCase() === WWW_HOSTNAME) {
+      url.protocol = "https:";
+      url.hostname = CANONICAL_HOSTNAME;
+      url.port = "";
+      return Response.redirect(url.toString(), 308);
+    }
 
     if (url.pathname === "/api/contact-config" && request.method === "GET") {
       return getContactConfig(env);
@@ -36,6 +46,13 @@ const worker = {
 
     if (url.pathname === "/api/contact" && request.method === "POST") {
       return handleContact(request, env);
+    }
+
+    // This portfolio has no Server Actions. Reject every other write method
+    // before the framework can parse an action or multipart request.
+    const allowed = url.pathname === "/api/contact" ? "POST" : "GET, HEAD";
+    if (url.pathname === "/api/contact" || !["GET", "HEAD"].includes(request.method)) {
+      return new Response("Method not allowed", { status: 405, headers: { allow: allowed, "cache-control": "no-store" } });
     }
 
     if (url.pathname === "/_vinext/image") {
@@ -50,6 +67,11 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
+}
+
+const worker = {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    return withSecurityHeaders(await route(request, env, ctx), request);
   },
 };
 

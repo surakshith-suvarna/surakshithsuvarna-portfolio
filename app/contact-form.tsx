@@ -1,76 +1,15 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-
-type RecaptchaApi = {
-  ready: (callback: () => void) => void;
-  execute: (siteKey: string, options: { action: string }) => Promise<string>;
-};
-
-declare global {
-  interface Window {
-    grecaptcha?: RecaptchaApi;
-  }
-}
+import { ensureRecaptcha, withDeadline } from "./recaptcha";
 
 type FormStatus = "idle" | "submitting" | "success" | "error";
-type RecaptchaContext = { api: RecaptchaApi; siteKey: string };
 
 export default function ContactForm() {
   const [status, setStatus] = useState<FormStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
-  const recaptchaPromiseRef = useRef<Promise<RecaptchaContext> | null>(null);
-
-  const ensureRecaptcha = () => {
-    if (recaptchaPromiseRef.current) return recaptchaPromiseRef.current;
-
-    recaptchaPromiseRef.current = fetch("/api/contact-config", { headers: { accept: "application/json" } })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("The contact form is temporarily unavailable.");
-        const data = (await response.json()) as { siteKey?: string };
-        if (!data.siteKey) throw new Error("The contact form is temporarily unavailable.");
-        return data.siteKey;
-      })
-      .then((siteKey) => new Promise<RecaptchaContext>((resolve, reject) => {
-        const fail = () => reject(new Error("The security check could not load. Please try again."));
-        const markReady = () => {
-          const api = window.grecaptcha;
-          if (!api) {
-            fail();
-            return;
-          }
-          api.ready(() => resolve({ api, siteKey }));
-        };
-
-        if (window.grecaptcha) {
-          markReady();
-          return;
-        }
-
-        const existingScript = document.querySelector<HTMLScriptElement>("script[data-recaptcha-script]");
-        if (existingScript) {
-          existingScript.addEventListener("load", markReady, { once: true });
-          existingScript.addEventListener("error", fail, { once: true });
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}&trustedtypes=true`;
-        script.async = true;
-        script.defer = true;
-        script.dataset.recaptchaScript = "true";
-        script.addEventListener("load", markReady, { once: true });
-        script.addEventListener("error", fail, { once: true });
-        document.head.appendChild(script);
-      }))
-      .catch((error) => {
-        recaptchaPromiseRef.current = null;
-        throw error;
-      });
-
-    return recaptchaPromiseRef.current;
-  };
+  const submittingRef = useRef(false);
 
   const prepareSecurityCheck = () => {
     void ensureRecaptcha().catch(() => undefined);
@@ -79,7 +18,7 @@ export default function ContactForm() {
   const getRecaptchaToken = async () => {
     const { api, siteKey } = await ensureRecaptcha();
     try {
-      return await api.execute(siteKey, { action: "portfolio_contact" });
+      return await withDeadline(api.execute(siteKey, { action: "portfolio_contact" }), 10_000, "The security check timed out. Please try again.");
     } catch {
       throw new Error("The security check could not run. Please try again.");
     }
@@ -87,6 +26,8 @@ export default function ContactForm() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     const form = event.currentTarget;
     const fields = new FormData(form);
     setStatus("submitting");
@@ -98,6 +39,7 @@ export default function ContactForm() {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
+        signal: AbortSignal.timeout(25_000),
         body: JSON.stringify({
           name: fields.get("name"),
           email: fields.get("email"),
@@ -106,17 +48,19 @@ export default function ContactForm() {
           recaptchaToken,
         }),
       });
-      const result = (await response.json()) as { ok?: boolean; message?: string };
+      const result: unknown = await response.json();
+      if (!result || typeof result !== "object" || !("ok" in result)) throw new Error("Your message could not be sent. Please try again later.");
+      const message = "message" in result && typeof result.message === "string" ? result.message : "";
 
-      if (!response.ok || !result.ok) throw new Error(result.message || "Your message could not be sent.");
+      if (!response.ok || result.ok !== true) throw new Error(message || "Your message could not be sent.");
 
       setStatus("success");
-      setStatusMessage(result.message || "Thanks — your message has been sent.");
+      setStatusMessage(message || "Thanks — your message has been sent.");
       formRef.current?.reset();
     } catch (error) {
       setStatus("error");
-      setStatusMessage(error instanceof Error ? error.message : "Your message could not be sent.");
-    }
+      setStatusMessage(error instanceof Error && error.name !== "TimeoutError" && error.name !== "AbortError" ? error.message : "Your message could not be sent. Please try again later.");
+    } finally { submittingRef.current = false; }
   };
 
   return (
@@ -146,7 +90,7 @@ export default function ContactForm() {
         </p>
       </div>
       <p className="contact-privacy">
-        Your details are used only to reply to this enquiry and are not stored on this site. Protected by reCAPTCHA; Google&apos;s <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> apply.
+        Your enquiry is emailed for a reply; its contents are not stored on this site. Temporary security counters help prevent spam. Protected by reCAPTCHA; Google&apos;s <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> apply.
       </p>
     </form>
   );

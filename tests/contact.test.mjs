@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
+import { createTestDatabase } from "./helpers/d1.mjs";
 
 const workerUrl = new URL("../dist/server/index.js", import.meta.url);
 workerUrl.searchParams.set("contact-test", `${process.pid}-${Date.now()}`);
@@ -11,6 +12,7 @@ const ctx = {
 };
 
 const baseEnv = {
+  DB: createTestDatabase(),
   RECAPTCHA_SITE_KEY: "public-site-key",
   RECAPTCHA_SECRET_KEY: "private-recaptcha-key",
   RECAPTCHA_MIN_SCORE: "0.5",
@@ -18,6 +20,7 @@ const baseEnv = {
   CONTACT_TO: "recipient@example.test",
   CONTACT_FROM: "Portfolio <contact@example.test>",
 };
+after(() => baseEnv.DB.sqlite.close());
 
 test("contact config exposes only the public reCAPTCHA site key", async () => {
   const response = await worker.fetch(new Request("https://portfolio.example/api/contact-config"), baseEnv, ctx);

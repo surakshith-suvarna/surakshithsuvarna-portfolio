@@ -11,15 +11,15 @@ export const metadata: Metadata = {
     description: "Planning and executing a vSphere 7 migration during lockdown with minimal production interruption.",
     url: "/case-studies/primary-datacentre-migration",
     publishedTime: "2026-08-23T04:06:30Z",
-    modifiedTime: "2026-08-24T23:28:13Z",
-    authors: ["https://www.surakshithsuvarna.com"],
-    images: [{ url: "https://www.surakshithsuvarna.com/social/primary-datacentre-migration-v2.png", width: 1200, height: 630, alt: "Primary Datacentre Migration — one-to-two-minute cutover per production VM" }],
+    modifiedTime: "2026-08-30T12:33:20Z",
+    authors: ["https://surakshithsuvarna.com"],
+    images: [{ url: "https://surakshithsuvarna.com/social/primary-datacentre-migration-v2.png", width: 1200, height: 630, alt: "Primary Datacentre Migration — one-to-two-minute cutover per production VM" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Primary Datacentre Migration",
     description: "A vSphere 7 migration balancing continuity, rollback readiness and cross-team validation.",
-    images: ["https://www.surakshithsuvarna.com/social/primary-datacentre-migration-v2.png"],
+    images: ["https://surakshithsuvarna.com/social/primary-datacentre-migration-v2.png"],
   },
 };
 
@@ -31,9 +31,9 @@ export default function DatacentreMigrationCaseStudy() {
       introduction="A phased vSphere 7 datacentre migration completed during the COVID-19 lockdown, with replicated production workloads, planned rollback paths and coordinated application-level validation."
       canonicalPath="/case-studies/primary-datacentre-migration"
       description="A phased VMware vSphere 7 datacentre migration of approximately 230 production and VDI virtual machines with minimal service disruption."
-      image="https://www.surakshithsuvarna.com/social/primary-datacentre-migration-v2.png"
+      image="https://surakshithsuvarna.com/social/primary-datacentre-migration-v2.png"
       datePublished="2026-08-23T04:06:30Z"
-      dateModified="2026-08-24T23:28:13Z"
+      dateModified="2026-08-30T12:33:20Z"
       keywords={["VMware vSphere 7", "datacentre migration", "vSphere Replication", "VDI", "disaster recovery", "infrastructure"]}
       metrics={[
         { value: "≈230", label: "Production and VDI VMs" },
@@ -42,8 +42,8 @@ export default function DatacentreMigrationCaseStudy() {
         { value: "Dec 2020", label: "Migration completed" },
       ]}
       technologies={["VMware vSphere 7", "vSphere Replication", "VMware VDI", "Disaster recovery", "Application-level validation"]}
-      nextHref="/case-studies/3cx-post-call-analytics"
-      nextLabel="3CX Post-Call Analytics"
+      nextHref="/case-studies/unified-it-operations-dashboard"
+      nextLabel="Unified IT Operations Dashboard"
     >
       <section id="challenge">
         <p className="case-section-label">01 · Challenge</p>

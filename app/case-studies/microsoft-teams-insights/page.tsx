@@ -11,15 +11,15 @@ export const metadata: Metadata = {
     description: "Automated meeting notes and reusable follow-up context for an 80-person workforce.",
     url: "/case-studies/microsoft-teams-insights",
     publishedTime: "2026-08-23T04:06:30Z",
-    modifiedTime: "2026-08-24T23:28:13Z",
-    authors: ["https://www.surakshithsuvarna.com"],
-    images: [{ url: "https://www.surakshithsuvarna.com/social/microsoft-teams-insights.png", width: 1200, height: 630, alt: "Microsoft Teams Insights — supporting an 80-person workforce" }],
+    modifiedTime: "2026-08-30T12:33:20Z",
+    authors: ["https://surakshithsuvarna.com"],
+    images: [{ url: "https://surakshithsuvarna.com/social/microsoft-teams-insights.png", width: 1200, height: 630, alt: "Microsoft Teams Insights — supporting an 80-person workforce" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Microsoft Teams Insights",
     description: "Automated meeting notes and follow-up intelligence in Microsoft Teams.",
-    images: ["https://www.surakshithsuvarna.com/social/microsoft-teams-insights.png"],
+    images: ["https://surakshithsuvarna.com/social/microsoft-teams-insights.png"],
   },
 };
 
@@ -31,9 +31,9 @@ export default function TeamsInsightsCaseStudy() {
       introduction="An on-premises Teams application that turns meeting recordings and transcripts into consistent notes, summaries and reusable context for follow-on meetings."
       canonicalPath="/case-studies/microsoft-teams-insights"
       description="An on-premises Microsoft Teams meeting-insights application researched, designed, built and maintained by Surakshith Suvarna."
-      image="https://www.surakshithsuvarna.com/social/microsoft-teams-insights.png"
+      image="https://surakshithsuvarna.com/social/microsoft-teams-insights.png"
       datePublished="2026-08-23T04:06:30Z"
-      dateModified="2026-08-24T23:28:13Z"
+      dateModified="2026-08-30T12:33:20Z"
       keywords={["Microsoft Teams", "meeting insights", "Go", "React", "RabbitMQ", "SigNoz", "Microsoft Fluent UI"]}
       metrics={[
         { value: "≈80", label: "Employees supported" },

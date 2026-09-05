@@ -11,15 +11,15 @@ export const metadata: Metadata = {
     description: "AI-assisted call documentation, built in 15 days and running in production since September 2023.",
     url: "/case-studies/3cx-post-call-analytics",
     publishedTime: "2026-08-23T04:06:30Z",
-    modifiedTime: "2026-08-24T23:28:13Z",
-    authors: ["https://www.surakshithsuvarna.com"],
-    images: [{ url: "https://www.surakshithsuvarna.com/social/3cx-post-call-analytics.png", width: 1200, height: 630, alt: "3CX Post-Call Analytics — approximately 250 calls processed daily" }],
+    modifiedTime: "2026-08-30T12:33:20Z",
+    authors: ["https://surakshithsuvarna.com"],
+    images: [{ url: "https://surakshithsuvarna.com/social/3cx-post-call-analytics.png", width: 1200, height: 630, alt: "3CX Post-Call Analytics — approximately 250 calls processed daily" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "3CX Post-Call Analytics",
     description: "AI-assisted call documentation processing approximately 250 calls each day.",
-    images: ["https://www.surakshithsuvarna.com/social/3cx-post-call-analytics.png"],
+    images: ["https://surakshithsuvarna.com/social/3cx-post-call-analytics.png"],
   },
 };
 
@@ -31,9 +31,9 @@ export default function ThreeCXCaseStudy() {
       introduction="An AI-assisted production system that turns call recordings into consistent notes and structured insights—reducing manual wrap-up work and helping customer-service agents move to the next conversation sooner."
       canonicalPath="/case-studies/3cx-post-call-analytics"
       description="How Surakshith Suvarna designed and built an AI-assisted post-call system that processes approximately 250 customer-service calls each day."
-      image="https://www.surakshithsuvarna.com/social/3cx-post-call-analytics.png"
+      image="https://surakshithsuvarna.com/social/3cx-post-call-analytics.png"
       datePublished="2026-08-23T04:06:30Z"
-      dateModified="2026-08-24T23:28:13Z"
+      dateModified="2026-08-30T12:33:20Z"
       keywords={["3CX", "call analytics", "AssemblyAI", "Gemini 2.5 Flash", "Go", "workflow automation", "MySQL"]}
       metrics={[
         { value: "15 days", label: "Research, design and build" },

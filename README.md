@@ -1,12 +1,12 @@
 # Surakshith Suvarna — Portfolio
 
-Source for [surakshithsuvarna.com](https://www.surakshithsuvarna.com/), a performance-focused portfolio presenting infrastructure engineering, software development, AI-assisted automation, professional experience, and technical case studies.
+Source for [surakshithsuvarna.com](https://surakshithsuvarna.com/), a performance-focused portfolio presenting infrastructure engineering, software development, AI-assisted automation, professional experience, and technical case studies.
 
 ## Highlights
 
 - Responsive, accessible portfolio with semantic navigation and structured data
-- Detailed case studies for 3CX Post-Call Analytics, Microsoft Teams Insights, and a primary datacentre migration
-- Per-page Open Graph social cards and search-engine metadata
+- Detailed case studies for 3CX Post-Call Analytics, Microsoft Teams Insights, a primary datacentre migration, and the Unified IT Operations Dashboard
+- Dedicated social cards for the three original case studies and page-specific search metadata
 - Server-side contact delivery through Resend
 - Google reCAPTCHA v3 loaded only when a visitor interacts with the contact form
 - Sitemap, robots directives, canonical URLs, and JSON-LD structured data
@@ -20,6 +20,7 @@ Source for [surakshithsuvarna.com](https://www.surakshithsuvarna.com/), a perfor
 - Cloudflare Workers-compatible server runtime
 - Resend for contact-form email delivery
 - Google reCAPTCHA v3 for abuse protection
+- Cloudflare D1 for expiring contact abuse counters
 
 ## Project structure
 
@@ -43,6 +44,7 @@ scripts/                Reproducible install and build helpers
 Install dependencies and start the development server:
 
 ```bash
+cp .openai/hosting.example.json .openai/hosting.json
 npm ci
 npm run dev
 ```
@@ -57,6 +59,8 @@ CONTACT_TO=
 CONTACT_FROM=
 ```
 
+The sample hosting configuration contains logical bindings only. Keep your actual Sites project identity in the ignored `.openai/hosting.json`; a newly hosted copy must use its own site identity.
+
 Never commit `.env` files or production credentials. They are intentionally excluded by `.gitignore`.
 
 ## Validation
@@ -67,6 +71,18 @@ npm run lint
 ```
 
 `npm test` builds the application and verifies the contact endpoint, metadata, structured content, link labels, and email-harvesting protections.
+
+The latest security release passed all 34 tests and a complete dependency audit with zero reported vulnerabilities. Live CAPTCHA/rate-limit checks remain unverified because the testing environment blocked those requests.
+
+The build also runs bounded-request, provider-error, CAPTCHA-recovery, security-header, and atomic rate-limit regressions. Tests use fake credentials and mocked email/CAPTCHA providers; no real mail is sent.
+
+## Contact security
+
+The Worker requires the `DB` D1 binding and the generated `drizzle/` migration. Sites packages the migration and applies it during deployment. For another host, apply the migration before activating the Worker; contact delivery returns a controlled 503 when its abuse protection is unavailable.
+
+Fixed-window limits allow five validated attempts per IP per 15 minutes, 120 attempts across the site per hour, and 20 delivery attempts per UTC day. These include failed provider calls; a limit returns 429 with `Retry-After`. Requests at window boundaries can burst across two windows. Raw IP addresses and enquiry contents are not stored in D1. IP identifiers use a secret-keyed, window-specific HMAC; expired counters are removed on subsequent submissions. Idle sites retain only their last bounded set of counters.
+
+See [security remediation notes](docs/security-remediation.md) for the current safeguards, dependency remediation, and CSP rollout status.
 
 ## Production build
 
@@ -94,6 +110,6 @@ Scores are laboratory measurements and can vary between runs.
 
 Surakshith Suvarna
 
-- [Portfolio](https://www.surakshithsuvarna.com/)
+- [Portfolio](https://surakshithsuvarna.com/)
 - [GitHub](https://github.com/surakshith-suvarna)
 - [LinkedIn](https://www.linkedin.com/in/surakshith-suvarna-42863961/)

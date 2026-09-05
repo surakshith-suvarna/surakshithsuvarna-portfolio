@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import BrandMark from "./brand-mark";
 import JsonLd from "./structured-data";
 
-const siteUrl = "https://www.surakshithsuvarna.com";
+const siteUrl = "https://surakshithsuvarna.com";
 
 type Metric = {
   value: string;
@@ -14,7 +15,7 @@ type CaseStudyProps = {
   introduction: string;
   canonicalPath: string;
   description: string;
-  image: string;
+  image?: string;
   datePublished: string;
   dateModified: string;
   keywords: string[];
@@ -52,7 +53,7 @@ export default function CaseStudy({
         "@id": `${canonicalUrl}#article`,
         headline: title,
         description,
-        image: [image],
+        ...(image ? { image: [image] } : {}),
         datePublished,
         dateModified,
         articleSection: eyebrow,
@@ -94,7 +95,7 @@ export default function CaseStudy({
       <a className="skip-link" href="#case-study-content">Skip to case study</a>
       <header className="site-header case-study-header">
         <a className="brand" href="/" aria-label="Surakshith Suvarna, home">
-          <span className="brand-mark">SS</span><span>Surakshith Suvarna</span>
+          <BrandMark /><span>Surakshith Suvarna</span>
         </a>
         <nav aria-label="Primary navigation">
           <a href="/#work">Work</a><a href="/#expertise">Expertise</a><a href="/#experience">Experience</a><a className="nav-cta" href="/#contact">Contact</a>
@@ -144,7 +145,7 @@ export default function CaseStudy({
       </article>
 
       <footer>
-        <a className="brand" href="/"><span className="brand-mark">SS</span><span>Surakshith Suvarna</span></a>
+        <a className="brand" href="/" aria-label="Surakshith Suvarna, home"><BrandMark /><span>Surakshith Suvarna</span></a>
         <p>Infrastructure · Reliability · Software</p><p>© 2026 Surakshith Suvarna</p>
       </footer>
     </main>

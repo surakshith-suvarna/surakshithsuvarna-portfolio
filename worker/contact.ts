@@ -1,4 +1,8 @@
+import { reserveDelivery, reserveVerification, type LimitDatabase, type LimitResult } from "./contact-limits";
+import { BodyError, readBoundedBody } from "./request-body";
+
 export interface ContactEnv {
+  DB?: LimitDatabase;
   RECAPTCHA_SITE_KEY?: string;
   RECAPTCHA_SECRET_KEY?: string;
   RECAPTCHA_MIN_SCORE?: string;
@@ -41,6 +45,17 @@ const cleanMessage = (value: unknown) =>
 const isEmail = (value: string) =>
   value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const limited = ({ retryAfter }: LimitResult) => {
+  const response = json({ ok: false, message: "Too many enquiries. Please try again later." }, 429);
+  response.headers.set("retry-after", String(retryAfter));
+  return response;
+};
+
+const unavailable = () => json({ ok: false, message: "The contact form is temporarily unavailable. Please try again later." }, 503);
+
 export function getContactConfig(env: ContactEnv): Response {
   if (!env.RECAPTCHA_SITE_KEY) {
     return json({ ok: false, message: "The contact form is not configured yet." }, 503);
@@ -65,9 +80,10 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
     return json({ ok: false, message: "This submission could not be verified." }, 403);
   }
 
-  if (!contentType.includes("application/json") || declaredLength > 16_384) {
+  if (contentType.split(";", 1)[0].trim().toLowerCase() !== "application/json") {
     return json({ ok: false, message: "The submission format is not valid." }, 415);
   }
+  if (declaredLength > 16_384) return json({ ok: false, message: "The message is too long." }, 413);
 
   if (
     !env.RECAPTCHA_SECRET_KEY ||
@@ -80,13 +96,20 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
 
   let payload: ContactPayload;
   try {
-    const rawBody = await request.text();
-    if (rawBody.length > 12_000) {
-      return json({ ok: false, message: "The message is too long." }, 413);
-    }
-    payload = JSON.parse(rawBody) as ContactPayload;
-  } catch {
+    const parsed: unknown = JSON.parse(await readBoundedBody(request));
+    if (!isRecord(parsed)) throw new Error("Invalid shape");
+    payload = parsed;
+  } catch (error) {
+    if (error instanceof BodyError) return json({ ok: false, message: error.status === 413 ? "The message is too long." : "The submission timed out. Please try again." }, error.status);
     return json({ ok: false, message: "The submission format is not valid." }, 400);
+  }
+
+  for (const [field, maximum] of [["name", 80], ["email", 254], ["message", 3000], ["recaptchaToken", 4096], ["company", 120]] as const) {
+    const value = payload[field];
+    if (field === "company" && value === undefined) continue;
+    if (typeof value !== "string" || value.length > maximum) {
+      return json({ ok: false, message: "Please check the fields and their length limits." }, 400);
+    }
   }
 
   const name = cleanSingleLine(payload.name, 80);
@@ -111,6 +134,15 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
   const remoteIp = request.headers.get("cf-connecting-ip");
   if (remoteIp) verificationBody.set("remoteip", remoteIp);
 
+  if (!env.DB) return unavailable();
+  try {
+    const limit = await reserveVerification(env.DB, remoteIp || "unknown", env.RECAPTCHA_SECRET_KEY);
+    if (!limit.allowed) return limited(limit);
+  } catch {
+    console.error("Contact abuse protection unavailable");
+    return unavailable();
+  }
+
   let verification: RecaptchaResult;
   try {
     const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
@@ -119,7 +151,11 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
       body: verificationBody,
       signal: AbortSignal.timeout(8_000),
     });
-    verification = (await response.json()) as RecaptchaResult;
+    if (!response.ok) throw new Error("Verification HTTP failure");
+    const result: unknown = await response.json();
+    if (!isRecord(result) || typeof result.success !== "boolean") throw new Error("Invalid verification response");
+    if (result.success && (typeof result.hostname !== "string" || typeof result.action !== "string" || typeof result.score !== "number" || !Number.isFinite(result.score) || result.score < 0 || result.score > 1)) throw new Error("Invalid verification fields");
+    verification = result as RecaptchaResult;
   } catch {
     return json({ ok: false, message: "The security check is unavailable. Please try again." }, 502);
   }
@@ -149,6 +185,14 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
     "Message:",
     message,
   ].join("\n");
+
+  try {
+    const limit = await reserveDelivery(env.DB);
+    if (!limit.allowed) return limited(limit);
+  } catch {
+    console.error("Contact delivery budget unavailable");
+    return unavailable();
+  }
 
   try {
     const resendResponse = await fetch("https://api.resend.com/emails", {
