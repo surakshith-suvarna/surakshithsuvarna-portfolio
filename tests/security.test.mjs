@@ -99,14 +99,35 @@ test("per-IP limit rejects before CAPTCHA with Retry-After", async (t) => {
 test("atomic global budgets bound parallel requests and rotating-IP state", async (t) => {
   const { DB } = fixture(t);
   const now = 1_800_000_010;
-  const attempts = await Promise.all(Array.from({ length: 150 }, (_, i) => reserveVerification(DB, `192.0.2.${i}`, "secret", now)));
+  const attempts = await Promise.all(Array.from({ length: 600 }, (_, i) => reserveVerification(DB, `192.0.${Math.floor(i / 256)}.${i % 256}`, "secret", now)));
   assert.equal(attempts.filter((value) => value.allowed).length, 120);
-  assert.ok(DB.sqlite.prepare("SELECT count(*) AS n FROM contact_limits").get().n <= 121);
+  assert.equal(DB.sqlite.prepare("SELECT count(*) AS n FROM contact_limits WHERE key LIKE 'ip:%'").get().n, 480);
+  assert.equal(DB.sqlite.prepare("SELECT count(*) AS n FROM contact_limits").get().n, 481);
   assert.doesNotMatch(JSON.stringify(DB.sqlite.prepare("SELECT * FROM contact_limits").all()), /192\.0\.2/);
   const delivery = await Promise.all(Array.from({ length: 25 }, () => reserveDelivery(DB, now)));
   assert.equal(delivery.filter((value) => value.allowed).length, 20);
   await reserveVerification(DB, "192.0.2.1", "secret", now + 86400);
   assert.equal(DB.sqlite.prepare("SELECT count(*) AS n FROM contact_limits WHERE expires_at <= ?").get(now + 86400).n, 0);
+});
+
+test("invalid CAPTCHA flood from one IP leaves another visitor able to contact", async (t) => {
+  t.mock.method(Date, "now", () => 1_800_000_010_000);
+  const env = fixture(t);
+  let acceptCaptcha = false;
+  const calls = providers(t, () => Response.json(acceptCaptcha ? verified : { success: false }));
+  for (let i = 0; i < 120; i++) {
+    const response = await worker.fetch(request(), env, ctx);
+    assert.equal(response.status, i < 5 ? 400 : 429);
+    if (i >= 5) assert.equal(response.headers.get("retry-after"), "890");
+  }
+  assert.equal(calls.verification, 5);
+  assert.equal(calls.delivery, 0);
+  assert.equal(env.DB.sqlite.prepare("SELECT count FROM contact_limits WHERE key LIKE 'verification:%'").get().count, 5);
+  acceptCaptcha = true;
+  const visitor = await worker.fetch(request(undefined, { "cf-connecting-ip": "198.51.100.77" }), env, ctx);
+  assert.equal(visitor.status, 200);
+  assert.equal(calls.verification, 6);
+  assert.equal(calls.delivery, 1);
 });
 
 test("delivery budget and unavailable storage block external delivery", async (t) => {

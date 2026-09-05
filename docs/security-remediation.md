@@ -18,7 +18,7 @@ Script/resource restrictions are **report-only**, not enforced. Streamed React b
 
 ## Storage and privacy
 
-The new `contact_limits` table holds only a counter key, count and expiry. IP-derived keys are HMACs using a server-only key with a per-window input; no raw IP, name, email or message is stored. A global admission budget bounds the number of IP rows even if callers rotate addresses. Expired rows are deleted on subsequent submissions; an idle site retains only the last bounded set. These limits protect provider use and email volume; they are not a replacement for hosting-level traffic protection and do not establish resistance to a distributed denial-of-service attack.
+The new `contact_limits` table holds only a counter key, count and expiry. IP-derived keys are HMACs using a server-only key with a per-window input; no raw IP, name, email or message is stored. A separate atomic insertion guard caps stored IP counters at 480, including requests rejected by the global budget. Per-IP admission runs before the global reservation, so already-blocked IPs cannot drain shared verification capacity. Existing IP counters remain usable when the storage cap is reached; new counters fail closed until expired entries are cleared. Expired rows are deleted on subsequent submissions; an idle site retains only the last bounded set. These limits protect provider use and email volume; they are not a replacement for hosting-level traffic protection and do not establish resistance to a distributed denial-of-service attack.
 
 The schema-only migration and D1 binding must be applied with the Worker. Sites performs migration application during publication. The migration was executed against SQLite in the regression tests and included in the preceding security deployment. This dependency follow-up adds no schema changes.
 
@@ -49,3 +49,13 @@ The weekly dependency check should continue reviewing these pinned overrides. Re
 - The dependency follow-up uses local malformed-image fixtures in a subprocess with a three-second deadline. It sends no real email, production contact POST, load test or malformed-image payload to the live site.
 
 Full CSP enforcement, live CAPTCHA/email delivery and live rate-limit verification remain separate validation items. Some earlier live checks were blocked by network approval cancellation; passing local tests does not establish their live result. Existing Lighthouse results predate this security release.
+
+## Follow-up: rejected IPs consuming the global budget
+
+Codex Security identified a medium-severity availability flaw in the original reservation order. A single IP could use 120 invalid-token requests to consume the shared hourly quota, even though only five requests reached Google. This was reproduced locally in both sequential and concurrent tests. It could temporarily block the contact channel for other visitors; it does not expose credentials or affect the public page content.
+
+The fix reserves the per-IP counter first and spends global verification capacity only after that reservation succeeds. A separate SQL insertion predicate limits IP state to 480 rows atomically. It permits existing counters to continue at capacity and rejects new identifiers without spending a global slot. Cleanup removes expired counters, and a capacity rejection uses the per-IP window's Retry-After. No migration or quota changes are required.
+
+The global cap remains before CAPTCHA verification to bound external provider requests. Requests admitted by the per-IP limiter still consume the global quota even if CAPTCHA fails. Many distinct IPs can still exhaust this intentional shared budget; this fix specifically prevents an already-blocked IP from continuing to drain it.
+
+Regression coverage includes 120 sequential and concurrent attempts from one IP, continued admission for a different IP, the real contact handler with mocked providers, storage-cap races, existing-counter admission at capacity, cleanup, and hourly quota recovery. The full build and 39 tests passed. No attack traffic or real email was sent to the production site; live verification remains separate.

@@ -72,7 +72,7 @@ npm run lint
 
 `npm test` builds the application and verifies the contact endpoint, metadata, structured content, link labels, and email-harvesting protections.
 
-The latest security release passed all 34 tests and a complete dependency audit with zero reported vulnerabilities. Live CAPTCHA/rate-limit checks remain unverified because the testing environment blocked those requests.
+The latest security release passed all 39 tests and a complete dependency audit with zero reported vulnerabilities. Live CAPTCHA/rate-limit checks remain unverified because the testing environment blocked those requests.
 
 The build also runs bounded-request, provider-error, CAPTCHA-recovery, security-header, and atomic rate-limit regressions. Tests use fake credentials and mocked email/CAPTCHA providers; no real mail is sent.
 
@@ -80,7 +80,7 @@ The build also runs bounded-request, provider-error, CAPTCHA-recovery, security-
 
 The Worker requires the `DB` D1 binding and the generated `drizzle/` migration. Sites packages the migration and applies it during deployment. For another host, apply the migration before activating the Worker; contact delivery returns a controlled 503 when its abuse protection is unavailable.
 
-Fixed-window limits allow five validated attempts per IP per 15 minutes, 120 attempts across the site per hour, and 20 delivery attempts per UTC day. These include failed provider calls; a limit returns 429 with `Retry-After`. Requests at window boundaries can burst across two windows. Raw IP addresses and enquiry contents are not stored in D1. IP identifiers use a secret-keyed, window-specific HMAC; expired counters are removed on subsequent submissions. Idle sites retain only their last bounded set of counters.
+Fixed-window limits allow five validated attempts per IP per 15 minutes, 120 attempts across the site per hour, and 20 delivery attempts per UTC day. These include failed provider calls; a limit returns 429 with `Retry-After`. Requests at window boundaries can burst across two windows. Per-IP admission happens before the hourly quota reservation: requests from an already-blocked IP do not spend shared capacity. A separate atomic guard caps stored IP counters at 480; existing counters remain usable at capacity, and expired counters are cleaned up. Raw IP addresses and enquiry contents are not stored in D1. IP identifiers use a secret-keyed, window-specific HMAC; expired counters are removed on subsequent submissions. Idle sites retain only their last bounded set of counters.
 
 See [security remediation notes](docs/security-remediation.md) for the current safeguards, dependency remediation, and CSP rollout status.
 
