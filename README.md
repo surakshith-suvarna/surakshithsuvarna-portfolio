@@ -8,7 +8,7 @@ Source for [surakshithsuvarna.com](https://surakshithsuvarna.com/), a performanc
 - Detailed case studies for 3CX Post-Call Analytics, Microsoft Teams Insights, a primary datacentre migration, and the Unified IT Operations Dashboard
 - Dedicated social cards for the three original case studies and page-specific search metadata
 - Server-side contact delivery through Resend
-- Google reCAPTCHA v3 loaded only when a visitor interacts with the contact form
+- Google reCAPTCHA Enterprise loaded only when a visitor interacts with the contact form
 - Sitemap, robots directives, canonical URLs, and JSON-LD structured data
 - Automated checks for rendered metadata, contact-form behavior, and accidental email exposure
 
@@ -19,7 +19,7 @@ Source for [surakshithsuvarna.com](https://surakshithsuvarna.com/), a performanc
 - Vinext and Vite
 - Cloudflare Workers-compatible server runtime
 - Resend for contact-form email delivery
-- Google reCAPTCHA v3 for abuse protection
+- Google reCAPTCHA Enterprise for abuse protection
 - Cloudflare D1 for expiring contact abuse counters
 
 ## Project structure
@@ -53,13 +53,17 @@ Create a local `.env` file from `.env.example` and provide the required values:
 
 ```env
 RECAPTCHA_SITE_KEY=
-RECAPTCHA_SECRET_KEY=
+RECAPTCHA_PROJECT_ID=
+RECAPTCHA_API_KEY=
+RECAPTCHA_MIN_SCORE=0.5
 RESEND_API_KEY=
 CONTACT_TO=
 CONTACT_FROM=
 ```
 
 The sample hosting configuration contains logical bindings only. Keep your actual Sites project identity in the ignored `.openai/hosting.json`; a newly hosted copy must use its own site identity.
+
+Create a score-based Website key in Google Cloud and add the exact hostname that serves the form to its allowed domains. Set `RECAPTCHA_SITE_KEY` to that key's ID and `RECAPTCHA_PROJECT_ID` to its Google Cloud project ID. Enable the reCAPTCHA Enterprise API and create a Google Cloud API key in the same project, restricted to that API. Put it in `RECAPTCHA_API_KEY` as a Worker secret. The browser receives the site key only. The Worker checks the assessment's token validity, action, hostname, and risk score before reserving a delivery slot.
 
 Never commit `.env` files or production credentials. They are intentionally excluded by `.gitignore`.
 
@@ -71,8 +75,6 @@ npm run lint
 ```
 
 `npm test` builds the application and verifies the contact endpoint, metadata, structured content, link labels, and email-harvesting protections.
-
-The latest security release passed all 39 tests and a complete dependency audit with zero reported vulnerabilities. Live CAPTCHA/rate-limit checks remain unverified because the testing environment blocked those requests.
 
 The build also runs bounded-request, provider-error, CAPTCHA-recovery, security-header, and atomic rate-limit regressions. Tests use fake credentials and mocked email/CAPTCHA providers; no real mail is sent.
 

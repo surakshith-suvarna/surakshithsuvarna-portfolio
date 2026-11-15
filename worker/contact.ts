@@ -4,7 +4,8 @@ import { BodyError, readBoundedBody } from "./request-body";
 export interface ContactEnv {
   DB?: LimitDatabase;
   RECAPTCHA_SITE_KEY?: string;
-  RECAPTCHA_SECRET_KEY?: string;
+  RECAPTCHA_PROJECT_ID?: string;
+  RECAPTCHA_API_KEY?: string;
   RECAPTCHA_MIN_SCORE?: string;
   RESEND_API_KEY?: string;
   CONTACT_TO?: string;
@@ -19,12 +20,21 @@ type ContactPayload = {
   recaptchaToken?: unknown;
 };
 
-type RecaptchaResult = {
-  success?: boolean;
-  hostname?: string;
-  action?: string;
-  score?: number;
-};
+const CONTACT_ACTION = "portfolio_contact";
+const GOOGLE_ASSESSMENT_ERRORS = new Set([
+  "API_KEY_INVALID",
+  "API_KEY_EXPIRED",
+  "API_KEY_SERVICE_BLOCKED",
+  "API_KEY_HTTP_REFERRER_BLOCKED",
+  "API_KEY_IP_ADDRESS_BLOCKED",
+  "BILLING_DISABLED",
+  "SERVICE_DISABLED",
+  "CONSUMER_INVALID",
+  "INVALID_ARGUMENT",
+  "NOT_FOUND",
+  "PERMISSION_DENIED",
+  "RESOURCE_EXHAUSTED",
+]);
 
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -56,18 +66,73 @@ const limited = ({ retryAfter }: LimitResult) => {
 
 const unavailable = () => json({ ok: false, message: "The contact form is temporarily unavailable. Please try again later." }, 503);
 
+function contactConfiguration(env: ContactEnv) {
+  const { DB, RECAPTCHA_SITE_KEY: siteKey, RECAPTCHA_PROJECT_ID: projectId,
+    RECAPTCHA_API_KEY: apiKey, RESEND_API_KEY: resendKey, CONTACT_TO: to, CONTACT_FROM: from } = env;
+  if (!DB || !siteKey?.trim() || !projectId?.trim() || !apiKey?.trim() ||
+      !resendKey || !to || !from) return null;
+  return { DB, siteKey: siteKey.trim(), projectId: projectId.trim(), apiKey: apiKey.trim(), resendKey, to, from };
+}
+
 export function getContactConfig(env: ContactEnv): Response {
-  if (!env.RECAPTCHA_SITE_KEY) {
-    return json({ ok: false, message: "The contact form is not configured yet." }, 503);
+  const config = contactConfiguration(env);
+  if (!config) return json({ ok: false, message: "The contact form is not configured yet." }, 503);
+  return json({ siteKey: config.siteKey });
+}
+
+async function verifyRecaptcha(
+  config: { projectId: string; siteKey: string; apiKey: string },
+  token: string,
+  hostname: string,
+  minimumScore: number,
+  remoteIp: string | null,
+): Promise<boolean> {
+  const endpoint = `https://recaptchaenterprise.googleapis.com/v1/projects/${encodeURIComponent(config.projectId)}/assessments`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-goog-api-key": config.apiKey },
+    body: JSON.stringify({
+      event: {
+        token,
+        siteKey: config.siteKey,
+        expectedAction: CONTACT_ACTION,
+        userIpAddress: remoteIp ?? undefined,
+      },
+    }),
+    redirect: "manual",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const error = isRecord(body) && isRecord(body.error) ? body.error : undefined;
+    const detail = Array.isArray(error?.details)
+      ? error.details.find((item) => isRecord(item) && item["@type"] === "type.googleapis.com/google.rpc.ErrorInfo")
+      : undefined;
+    const reason = typeof detail?.reason === "string" && GOOGLE_ASSESSMENT_ERRORS.has(detail.reason)
+      ? detail.reason
+      : typeof error?.status === "string" && GOOGLE_ASSESSMENT_ERRORS.has(error.status)
+        ? error.status
+        : undefined;
+    console.warn("reCAPTCHA assessment HTTP failure", { status: response.status, reason });
+    throw new Error("Assessment HTTP failure");
   }
 
-  return new Response(JSON.stringify({ siteKey: env.RECAPTCHA_SITE_KEY }), {
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "public, max-age=300",
-      "x-content-type-options": "nosniff",
-    },
-  });
+  const assessment: unknown = await response.json();
+  if (!isRecord(assessment) || !isRecord(assessment.tokenProperties)) {
+    throw new Error("Missing assessment token properties");
+  }
+  const { valid, invalidReason, action, hostname: tokenHostname } = assessment.tokenProperties;
+  // Google may omit a default false boolean from its JSON response.
+  if (valid === false || (valid === undefined && typeof invalidReason === "string" && invalidReason)) {
+    return false;
+  }
+
+  const score = isRecord(assessment.riskAnalysis) ? assessment.riskAnalysis.score : undefined;
+  if (valid !== true || typeof action !== "string" || typeof tokenHostname !== "string" ||
+    typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 1) {
+    throw new Error("Invalid assessment fields");
+  }
+  return action === CONTACT_ACTION && tokenHostname === hostname && score >= minimumScore;
 }
 
 export async function handleContact(request: Request, env: ContactEnv): Promise<Response> {
@@ -85,14 +150,8 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
   }
   if (declaredLength > 16_384) return json({ ok: false, message: "The message is too long." }, 413);
 
-  if (
-    !env.RECAPTCHA_SECRET_KEY ||
-    !env.RESEND_API_KEY ||
-    !env.CONTACT_TO ||
-    !env.CONTACT_FROM
-  ) {
-    return json({ ok: false, message: "The contact form is temporarily unavailable." }, 503);
-  }
+  const config = contactConfiguration(env);
+  if (!config) return unavailable();
 
   let payload: ContactPayload;
   try {
@@ -127,53 +186,40 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
     return json({ ok: false, message: "Please complete every field and the security check." }, 400);
   }
 
-  const verificationBody = new URLSearchParams({
-    secret: env.RECAPTCHA_SECRET_KEY,
-    response: recaptchaToken,
-  });
   const remoteIp = request.headers.get("cf-connecting-ip");
-  if (remoteIp) verificationBody.set("remoteip", remoteIp);
-
-  if (!env.DB) return unavailable();
   try {
-    const limit = await reserveVerification(env.DB, remoteIp || "unknown", env.RECAPTCHA_SECRET_KEY);
+    const limit = await reserveVerification(config.DB, remoteIp || "unknown", config.apiKey);
     if (!limit.allowed) return limited(limit);
   } catch {
     console.error("Contact abuse protection unavailable");
     return unavailable();
   }
 
-  let verification: RecaptchaResult;
-  try {
-    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: verificationBody,
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) throw new Error("Verification HTTP failure");
-    const result: unknown = await response.json();
-    if (!isRecord(result) || typeof result.success !== "boolean") throw new Error("Invalid verification response");
-    if (result.success && (typeof result.hostname !== "string" || typeof result.action !== "string" || typeof result.score !== "number" || !Number.isFinite(result.score) || result.score < 0 || result.score > 1)) throw new Error("Invalid verification fields");
-    verification = result as RecaptchaResult;
-  } catch {
-    return json({ ok: false, message: "The security check is unavailable. Please try again." }, 502);
-  }
-
-  const configuredScore = Number(env.RECAPTCHA_MIN_SCORE ?? "0.5");
+  const configuredScore = Number(env.RECAPTCHA_MIN_SCORE?.trim() || "0.5");
   const minimumScore = Number.isFinite(configuredScore) && configuredScore >= 0 && configuredScore <= 1
     ? configuredScore
     : 0.5;
-
-  if (
-    !verification.success ||
-    verification.action !== "portfolio_contact" ||
-    verification.hostname !== requestUrl.hostname ||
-    typeof verification.score !== "number" ||
-    verification.score < minimumScore
-  ) {
-    return json({ ok: false, message: "The security check failed. Please try again." }, 400);
+  let verified: boolean;
+  try {
+    verified = await verifyRecaptcha(config, recaptchaToken, requestUrl.hostname, minimumScore, remoteIp);
+  } catch (error) {
+    if (error instanceof Error && error.message !== "Assessment HTTP failure") {
+      console.warn("reCAPTCHA assessment unavailable", {
+        category: error.name === "TimeoutError" ? "timeout"
+          : error.name === "SyntaxError" ? "invalid_json"
+          : error.message === "Missing assessment token properties" ? "missing_token_properties"
+          : error.message === "Invalid assessment fields" ? "invalid_assessment_fields"
+          : /header|bytestring|invalid (?:value|character)/i.test(error.message) ? "invalid_request_header"
+          : /dns|resolve host/i.test(error.message) ? "dns"
+          : /tls|certificate|ssl/i.test(error.message) ? "tls"
+          : /not allowed|denied|blocked|disallowed/i.test(error.message) ? "blocked_transport"
+          : /connection lost|reset|disconnected|socket/i.test(error.message) ? "network_connection"
+          : "transport",
+      });
+    }
+    return json({ ok: false, message: "The security check is unavailable. Please try again." }, 502);
   }
+  if (!verified) return json({ ok: false, message: "The security check failed. Please try again." }, 400);
 
   const emailText = [
     "New portfolio contact submission",
@@ -187,7 +233,7 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
   ].join("\n");
 
   try {
-    const limit = await reserveDelivery(env.DB);
+    const limit = await reserveDelivery(config.DB);
     if (!limit.allowed) return limited(limit);
   } catch {
     console.error("Contact delivery budget unavailable");
@@ -198,13 +244,13 @@ export async function handleContact(request: Request, env: ContactEnv): Promise<
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.RESEND_API_KEY}`,
+        authorization: `Bearer ${config.resendKey}`,
         "content-type": "application/json",
         "idempotency-key": `portfolio-contact-${crypto.randomUUID()}`,
       },
       body: JSON.stringify({
-        from: env.CONTACT_FROM,
-        to: [env.CONTACT_TO],
+        from: config.from,
+        to: [config.to],
         reply_to: email,
         subject: `Portfolio enquiry from ${name}`,
         text: emailText,

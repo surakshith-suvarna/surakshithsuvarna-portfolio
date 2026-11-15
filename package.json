@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
-    "next": "16.3.4",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "next": "16.4.5",
+    "react": "19.2.9",
+    "react-dom": "19.2.9"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.54.4",
@@ -27,15 +27,15 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
+    "@vitejs/plugin-rsc": "0.5.37",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.4",
-    "react-server-dom-webpack": "19.2.8",
+    "eslint-config-next": "16.4.5",
+    "react-server-dom-webpack": "19.2.9",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
-    "vite": "8.2.2",
+    "vite": "8.2.6",
     "wrangler": "4.129.0"
   },
   "overrides": {
@@ -44,6 +44,28 @@
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "0.28.2"
+    },
+    "miniflare": {
+      "undici": "7.30.2"
+    },
+    "@vercel/og": {
+      "satori": {
+        ".": "0.33.5",
+        "fflate": "0.7.5"
+      }
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.8"
+    },
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2",
+    "fast-uri": "3.1.9",
+    "minimatch@3": {
+      "brace-expansion": "1.1.21"
+    },
+
+    "eslint-plugin-react-hooks": {
+      "zod": "4.6.7"
     }
   },
   "type": "module",

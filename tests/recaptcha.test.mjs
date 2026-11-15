@@ -28,6 +28,7 @@ test("failed CAPTCHA script is removed and retry loads a fresh script", async (t
   const rejection = assert.rejects(failed, /could not load/);
   await nextTurn();
   const first = scripts[0];
+  assert.equal(first.src, "https://www.google.com/recaptcha/enterprise.js?render=public-key&trustedtypes=true");
   first.dispatchEvent(new Event("error"));
   await rejection;
   assert.equal(scripts.length, 0);
@@ -36,7 +37,7 @@ test("failed CAPTCHA script is removed and retry loads a fresh script", async (t
   await nextTurn();
   assert.equal(scripts.length, 1);
   assert.notEqual(scripts[0], first);
-  window.grecaptcha = { ready: (callback) => callback(), execute: async () => "fresh-token" };
+  window.grecaptcha = { enterprise: { ready: (callback) => callback(), execute: async () => "fresh-token" } };
   scripts[0].dispatchEvent(new Event("load"));
   const context = await retry;
   assert.equal(await context.api.execute(context.siteKey, { action: "portfolio_contact" }), "fresh-token");
@@ -51,7 +52,7 @@ test("CAPTCHA loading and readiness have deadlines and remain retryable", async 
       const first = load(), rejected = assert.rejects(first, /could not load/);
       await nextTurn();
       if (readyNeverFires) {
-        window.grecaptcha = { ready() {}, execute: async () => "token" };
+        window.grecaptcha = { enterprise: { ready() {}, execute: async () => "token" } };
         scripts[0].dispatchEvent(new Event("load"));
       }
       await rejected;

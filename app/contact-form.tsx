@@ -34,7 +34,7 @@ export default function ContactForm() {
     setStatusMessage("Sending your message…");
 
     try {
-      // v3 tokens expire quickly, so generate one only when the visitor submits.
+      // reCAPTCHA tokens expire quickly, so generate one only when the visitor submits.
       const recaptchaToken = await getRecaptchaToken();
       const response = await fetch("/api/contact", {
         method: "POST",

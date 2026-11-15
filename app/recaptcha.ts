@@ -2,7 +2,7 @@ type RecaptchaApi = {
   ready(callback: () => void): void;
   execute(siteKey: string, options: { action: string }): Promise<string>;
 };
-declare global { interface Window { grecaptcha?: RecaptchaApi } }
+declare global { interface Window { grecaptcha?: { enterprise?: RecaptchaApi } } }
 type RecaptchaContext = { api: RecaptchaApi; siteKey: string };
 
 export async function withDeadline<T>(operation: Promise<T>, milliseconds: number, message: string): Promise<T> {
@@ -45,7 +45,7 @@ export function createRecaptchaLoader(timeoutMs = 10_000) {
           reject(new Error("The security check could not load. Please try again."));
         };
         const loaded = () => {
-          const api = window.grecaptcha;
+          const api = window.grecaptcha?.enterprise;
           if (!api) { failed(); return; }
           try {
             api.ready(() => {
@@ -57,7 +57,7 @@ export function createRecaptchaLoader(timeoutMs = 10_000) {
           } catch { failed(); }
         };
         const timer = setTimeout(failed, timeoutMs);
-        script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}&trustedtypes=true`;
+        script.src = `https://www.google.com/recaptcha/enterprise.js?render=${encodeURIComponent(siteKey)}&trustedtypes=true`;
         script.async = true;
         script.defer = true;
         script.dataset.recaptchaScript = "true";

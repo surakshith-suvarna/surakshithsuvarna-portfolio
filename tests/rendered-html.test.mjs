@@ -35,7 +35,7 @@ test("renders the protected contact form without exposing the mailbox", async ()
   assert.match(html, /name="message"/i);
   assert.doesNotMatch(html, /mailto:/i);
   assert.doesNotMatch(html, /[a-z0-9._%+-]+@surakshithsuvarna\.com/i);
-  assert.doesNotMatch(html, /google\.com\/recaptcha\/api\.js/i);
+  assert.doesNotMatch(html, /google\.com\/recaptcha\/(?:api|enterprise)\.js/i);
   assert.match(html, /Read\s*<!-- -->3CX Post.Call Analytics<!-- -->\s*case study/i);
 });
 

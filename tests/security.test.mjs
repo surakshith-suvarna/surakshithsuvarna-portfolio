@@ -8,12 +8,24 @@ const { readBoundedBody } = await importTypeScript("worker/request-body.ts");
 const { reserveVerification, reserveDelivery } = await importTypeScript("worker/contact-limits.ts");
 const ctx = { waitUntil() {}, passThroughOnException() {} };
 const payload = { name: "Example Visitor", email: "visitor@example.test", message: "Please contact me about a platform engineering project.", company: "", recaptchaToken: "test-token" };
-const verified = { success: true, hostname: "surakshithsuvarna.com", action: "portfolio_contact", score: 0.9 };
+const verified = {
+  tokenProperties: { valid: true, hostname: "surakshithsuvarna.com", action: "portfolio_contact" },
+  riskAnalysis: { score: 0.9 },
+};
+const rejected = { tokenProperties: { valid: false } };
 
 function fixture(t) {
   const DB = createTestDatabase();
   t.after(() => DB.sqlite.close());
-  return { DB, RECAPTCHA_SECRET_KEY: "fake-secret", RESEND_API_KEY: "fake-key", CONTACT_TO: "recipient@example.test", CONTACT_FROM: "sender@example.test" };
+  return {
+    DB,
+    RECAPTCHA_SITE_KEY: "public-site-key",
+    RECAPTCHA_PROJECT_ID: "portfolio-project",
+    RECAPTCHA_API_KEY: "fake-assessment-api-key",
+    RESEND_API_KEY: "fake-key",
+    CONTACT_TO: "recipient@example.test",
+    CONTACT_FROM: "sender@example.test",
+  };
 }
 function request(body = JSON.stringify(payload), extraHeaders = {}) {
   return new Request("https://surakshithsuvarna.com/api/contact", {
@@ -24,7 +36,7 @@ function request(body = JSON.stringify(payload), extraHeaders = {}) {
 function providers(t, verification = () => Response.json(verified)) {
   const calls = { verification: 0, delivery: 0 };
   t.mock.method(globalThis, "fetch", async (url) => {
-    if (String(url).includes("/siteverify")) { calls.verification++; return verification(); }
+    if (String(url) === "https://recaptchaenterprise.googleapis.com/v1/projects/portfolio-project/assessments") { calls.verification++; return verification(); }
     if (String(url) === "https://api.resend.com/emails") { calls.delivery++; return Response.json({ id: "fake-id" }); }
     throw new Error("Unexpected external call");
   });
@@ -67,7 +79,13 @@ test("invalid JSON structures, field types, lengths and content types are contro
 });
 
 test("provider HTTP and response-shape failures return 502 without delivering", async (t) => {
-  const responses = [() => Response.json(null), () => Response.json([]), () => Response.json({ success: "yes" }), () => Response.json(verified, { status: 500 }), () => Response.json({ ...verified, score: null })];
+  const responses = [
+    () => Response.json(null),
+    () => Response.json([]),
+    () => Response.json({ tokenProperties: { valid: "yes" } }),
+    () => Response.json(verified, { status: 500 }),
+    () => Response.json({ ...verified, riskAnalysis: { score: null } }),
+  ];
   for (const response of responses) {
     await t.test("invalid provider result", async (t) => {
       const calls = providers(t, response);
@@ -78,12 +96,30 @@ test("provider HTTP and response-shape failures return 502 without delivering", 
 });
 
 test("CAPTCHA rejection and honeypot never deliver mail", async (t) => {
-  const calls = providers(t, () => Response.json({ success: false }));
+  const results = [rejected, { tokenProperties: { invalidReason: "MALFORMED" } }];
+  const calls = providers(t, () => Response.json(results.shift()));
   const env = fixture(t);
-  assert.equal((await worker.fetch(request(), env, ctx)).status, 400);
+  for (let i = 0; i < 2; i++) {
+    assert.equal((await worker.fetch(request(), env, ctx)).status, 400);
+  }
   assert.equal((await worker.fetch(request(JSON.stringify({ ...payload, company: "spam" })), env, ctx)).status, 200);
-  assert.equal(calls.verification, 1);
+  assert.equal(calls.verification, 2);
   assert.equal(calls.delivery, 0);
+});
+
+test("a valid assessment must match the contact action and hostname", async (t) => {
+  for (const mismatch of [{ action: "another_action" }, { hostname: "other.example.test" }]) {
+    const label = Object.keys(mismatch)[0];
+    await t.test(label, async (t) => {
+      const calls = providers(t, () => Response.json({
+        ...verified,
+        tokenProperties: { ...verified.tokenProperties, ...mismatch },
+      }));
+      assert.equal((await worker.fetch(request(), fixture(t), ctx)).status, 400);
+      assert.equal(calls.verification, 1);
+      assert.equal(calls.delivery, 0);
+    });
+  }
 });
 
 test("per-IP limit rejects before CAPTCHA with Retry-After", async (t) => {
@@ -114,7 +150,7 @@ test("invalid CAPTCHA flood from one IP leaves another visitor able to contact",
   t.mock.method(Date, "now", () => 1_800_000_010_000);
   const env = fixture(t);
   let acceptCaptcha = false;
-  const calls = providers(t, () => Response.json(acceptCaptcha ? verified : { success: false }));
+  const calls = providers(t, () => Response.json(acceptCaptcha ? verified : rejected));
   for (let i = 0; i < 120; i++) {
     const response = await worker.fetch(request(), env, ctx);
     assert.equal(response.status, i < 5 ? 400 : 429);
